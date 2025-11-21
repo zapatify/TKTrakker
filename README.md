@@ -2,6 +2,8 @@
 
 A Discord bot that tracks team kills in online games. Admins can add/subtract TKs, and anyone can view the leaderboard.
 
+**🚀 [Quick Start Guide](QUICKSTART.md)** - Get up and running in 5 minutes!
+
 ## Features
 
 - 📊 Track team kills for server members
@@ -58,8 +60,8 @@ Download from https://rubyinstaller.org/
 ### 2. Clone or Download This Repository
 
 ```bash
-git clone https://github.com/zapatify/TKTrakker.git
-cd TKTrakker
+git clone https://github.com/yourusername/discord-tk-tracker.git
+cd discord-tk-tracker
 ```
 
 ### 3. Install Dependencies
