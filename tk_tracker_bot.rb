@@ -1,17 +1,23 @@
-require 'dotenv/load'
-require 'discordrb'
-require 'openssl'
-require 'json'
+#!/usr/bin/env ruby
+# Discord Team Kill Tracker Bot
+# Tracks team kills for online games with admin controls and leaderboards
+
+require 'dotenv/load'  # Load environment variables from .env file
+require 'discordrb'    # Discord API library
+require 'openssl'      # SSL support
+require 'json'         # JSON parsing for data storage
 
 # Only set custom cert path on macOS development
+# This fixes SSL certificate issues with OpenSSL 3.x on macOS
 if RUBY_PLATFORM.include?('darwin') && File.exist?('/opt/homebrew/etc/ca-certificates/cert.pem')
   OpenSSL::SSL::SSLContext::DEFAULT_PARAMS[:ca_file] = '/opt/homebrew/etc/ca-certificates/cert.pem'
 end
 
-# Data storage file
+# Data storage file - stores TK counts persistently
 DATA_FILE = 'tk_data.json'
 
-# Initialize or load TK data
+# Load TK data from JSON file
+# Returns: Hash with user_id as key, containing username and tk count
 def load_data
   if File.exist?(DATA_FILE)
     JSON.parse(File.read(DATA_FILE))
@@ -20,11 +26,15 @@ def load_data
   end
 end
 
+# Save TK data to JSON file
+# Params: data - Hash of user data to save
 def save_data(data)
   File.write(DATA_FILE, JSON.pretty_generate(data))
 end
 
-# Check if user is admin
+# Check if user has permission to use admin commands
+# Params: event - Discord message event
+# Returns: Boolean - true if user is admin
 def is_admin?(event)
   # Get the member object for the user in this server
   member = event.server.member(event.user.id)
@@ -33,26 +43,33 @@ def is_admin?(event)
   return true if member.permission?(:administrator)
   
   # Check if they have specific admin/moderator roles
+  # You can customize this list to match your server's role names
   admin_role_names = ['Admin', 'Moderator', 'admin', 'moderator', 'mod', 'Mod', 'TK Manager']
   member.roles.any? { |role| admin_role_names.include?(role.name) }
 end
 
+# Initialize Discord bot with token from environment variable
 bot = Discordrb::Bot.new(
   token: ENV['DISCORD_BOT_TOKEN'],
-  intents: [:server_messages, :direct_messages]
+  intents: [:server_messages, :direct_messages]  # Required intents for reading messages
 )
 
+# ============================================
+# ADMIN COMMANDS
+# ============================================
+
 # Add TK command (admin only)
+# Usage: !addtk @username
 bot.message(start_with: '!addtk') do |event|
   unless is_admin?(event)
     event.respond "❌ Only admins can add team kills."
-    break
+    next
   end
 
   # Get mentioned user
   if event.message.mentions.empty?
     event.respond "❌ Please mention a user: `!addtk @username`"
-    break
+    next
   end
 
   user = event.message.mentions.first
@@ -71,16 +88,17 @@ bot.message(start_with: '!addtk') do |event|
 end
 
 # Subtract TK command (admin only)
+# Usage: !subtk @username
 bot.message(start_with: '!subtk') do |event|
   unless is_admin?(event)
     event.respond "❌ Only admins can subtract team kills."
-    break
+    next
   end
 
   # Get mentioned user
   if event.message.mentions.empty?
     event.respond "❌ Please mention a user: `!subtk @username`"
-    break
+    next
   end
 
   user = event.message.mentions.first
@@ -91,7 +109,7 @@ bot.message(start_with: '!subtk') do |event|
   
   unless data[user_id]
     event.respond "❌ #{user.mention} has no team kills recorded."
-    break
+    next
   end
 
   if data[user_id]['tks'] > 0
@@ -104,13 +122,18 @@ bot.message(start_with: '!subtk') do |event|
   end
 end
 
+# ============================================
+# PUBLIC COMMANDS
+# ============================================
+
 # Show totals command (everyone can use)
+# Usage: !showtotals
 bot.message(content: '!showtotals') do |event|
   data = load_data
 
   if data.empty?
     event.respond "📊 No team kills recorded yet!"
-    break
+    next
   end
 
   # Sort by TKs (highest to lowest)
@@ -133,14 +156,20 @@ bot.message(content: '!showtotals') do |event|
   end
 end
 
+# ============================================
+# RESET FUNCTIONALITY
+# ============================================
+
 # Store pending resets (to handle confirmation)
+# Maps user_id to timestamp of reset request
 $pending_resets = {}
 
 # Reset TKs command (admin only, with confirmation)
+# Usage: !resettks
 bot.message(content: '!resettks') do |event|
   unless is_admin?(event)
     event.respond "❌ Only admins can reset team kills."
-    break
+    next
   end
 
   # Mark as pending reset
@@ -150,9 +179,10 @@ bot.message(content: '!resettks') do |event|
 end
 
 # Confirm reset command
+# Usage: !confirmreset (must be used within 30 seconds of !resettks)
 bot.message(content: '!confirmreset') do |event|
   unless is_admin?(event)
-    break
+    next
   end
 
   # Check if there's a pending reset
@@ -172,7 +202,12 @@ bot.message(content: '!confirmreset') do |event|
   end
 end
 
-# Help command
+# ============================================
+# HELP COMMAND
+# ============================================
+
+# Help command - displays all available commands
+# Usage: !tkhelp
 bot.message(content: '!tkhelp') do |event|
   help_message = <<~HELP
     🎮 **Team Kill Tracker Bot - Commands**
@@ -190,9 +225,15 @@ bot.message(content: '!tkhelp') do |event|
   event.respond help_message
 end
 
+# ============================================
+# BOT STARTUP
+# ============================================
+
+# Bot ready event - fires when bot successfully connects to Discord
 bot.ready do |event|
   puts "Logged in as #{bot.profile.name}"
   puts "Bot is ready and tracking team kills!"
 end
 
+# Start the bot (this blocks until bot is stopped)
 bot.run
