@@ -1,6 +1,7 @@
 ![Ruby Version](https://img.shields.io/badge/ruby-3.3%2B-red)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![GitHub release](https://img.shields.io/github/v/release/yourusername/discord-tk-tracker)# Discord Team Kill Tracker Bot
+![GitHub release](https://img.shields.io/github/v/release/yourusername/discord-tk-tracker)
+# Discord Team Kill Tracker Bot
 
 A Discord bot that tracks team kills in online games. Admins can add/subtract TKs, and anyone can view the leaderboard.
 
